@@ -1,20 +1,84 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ui/ProductCard";
 import { useCart } from "../context/CartContext";
-import { products } from "../data/products";
+import { getProduct, getProducts } from "../services/api";
 
 export function ProductDetailPage() {
   const { productId } = useParams();
   const { addItem } = useCart();
-  const product = products.find((item) => String(item.id) === productId);
+  const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
 
-  if (!product) {
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadProduct() {
+      setIsLoading(true);
+      setError("");
+      setNotFound(false);
+
+      try {
+        const apiProduct = await getProduct(productId);
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setProduct(apiProduct);
+
+        const related = await getProducts({
+          category: apiProduct.category,
+          sort: "popularity",
+        });
+
+        if (!controller.signal.aborted) {
+          setRelatedProducts(related.filter((item) => item.id !== apiProduct.id).slice(0, 3));
+        }
+      } catch (loadError) {
+        if (!controller.signal.aborted) {
+          const message = loadError.message || "No se pudo cargar el producto.";
+          setError(message);
+          setNotFound(message.toLowerCase().includes("not found"));
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProduct();
+
+    return () => controller.abort();
+  }, [productId]);
+
+  if (isLoading) {
     return (
       <main className="page-shell page-main">
         <div className="empty-state">
-          <p className="eyebrow">Producto no encontrado</p>
-          <h3>La referencia que buscas no está disponible.</h3>
-          <p>Regresa al catálogo para seguir explorando la colección completa.</p>
+          <p className="eyebrow">Cargando</p>
+          <h3>Consultando el producto.</h3>
+          <p>Estamos trayendo la información actualizada desde Supabase.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <main className="page-shell page-main">
+        <div className="empty-state">
+          <p className="eyebrow">{notFound ? "Producto no encontrado" : "Error de conexión"}</p>
+          <h3>
+            {notFound
+              ? "La referencia que buscas no está disponible."
+              : "No pudimos cargar este producto."}
+          </h3>
+          <p>{notFound ? "Regresa al catálogo para seguir explorando." : error}</p>
           <Link className="primary-button" to="/catalog">
             Volver al catálogo
           </Link>
@@ -22,10 +86,6 @@ export function ProductDetailPage() {
       </main>
     );
   }
-
-  const relatedProducts = products
-    .filter((item) => item.category === product.category && item.id !== product.id)
-    .slice(0, 3);
 
   return (
     <main className="page-shell page-main">
@@ -90,6 +150,7 @@ export function ProductDetailPage() {
               onClick={() =>
                 addItem({
                   id: product.id,
+                  variantId: product.variants[0]?.id,
                   name: product.name,
                   price: product.price,
                   category: product.category,
@@ -108,21 +169,23 @@ export function ProductDetailPage() {
         </div>
       </section>
 
-      <section className="related-section">
-        <div className="section-heading stack">
-          <div>
-            <p className="section-tag">Relacionados</p>
-            <h2>Más opciones dentro de {product.category.toLowerCase()}.</h2>
+      {relatedProducts.length > 0 ? (
+        <section className="related-section">
+          <div className="section-heading stack">
+            <div>
+              <p className="section-tag">Relacionados</p>
+              <h2>Más opciones dentro de {product.category.toLowerCase()}.</h2>
+            </div>
+            <p>Completa tu selección con productos afines en fórmula, intención y estética.</p>
           </div>
-          <p>Completa tu selección con productos afines en fórmula, intención y estética.</p>
-        </div>
 
-        <div className="products-grid">
-          {relatedProducts.map((related) => (
-            <ProductCard key={related.id} product={related} />
-          ))}
-        </div>
-      </section>
+          <div className="products-grid">
+            {relatedProducts.map((related) => (
+              <ProductCard key={related.id} product={related} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

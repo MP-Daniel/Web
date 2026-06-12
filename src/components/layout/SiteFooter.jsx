@@ -5,7 +5,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="page-shell footer-grid">
         <div>
-          <p className="section-tag">Lumina Beauty Atelier</p>
+          <p className="section-tag">Della shop</p>
           <h2>Cosmética contemporánea con una experiencia digital refinada.</h2>
         </div>
         <div className="footer-links">

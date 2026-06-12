@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { useCart } from "../../context/CartContext";
+import { createWhatsappCheckout } from "../../services/api";
 import { formatPrice, parsePrice } from "../../utils/price";
 
 function CartItem({ item, onDecrease, onIncrease, onRemove }) {
@@ -37,6 +39,8 @@ export function CartSection({
   title = "Tu selección de maquillaje en una vista clara y editable.",
   description = "Ajusta cantidades, elimina productos y revisa el resumen antes de continuar con el siguiente paso del ecommerce.",
 }) {
+  const [checkoutStatus, setCheckoutStatus] = useState("idle");
+  const [checkoutError, setCheckoutError] = useState("");
   const {
     items,
     itemCount,
@@ -46,6 +50,28 @@ export function CartSection({
     decreaseItem,
     removeItem,
   } = useCart();
+
+  async function handleWhatsappCheckout() {
+    setCheckoutError("");
+    setCheckoutStatus("loading");
+
+    try {
+      const checkout = await createWhatsappCheckout({
+        items,
+        customer: {},
+      });
+
+      if (!checkout?.whatsappUrl) {
+        throw new Error("El servidor no devolvió una URL de WhatsApp válida.");
+      }
+
+      window.open(checkout.whatsappUrl, "_blank", "noopener,noreferrer");
+      setCheckoutStatus("idle");
+    } catch (error) {
+      setCheckoutError(error.message);
+      setCheckoutStatus("error");
+    }
+  }
 
   return (
     <section className="cart-section" id="carrito">
@@ -99,9 +125,15 @@ export function CartSection({
           <strong>{totalLabel}</strong>
         </div>
 
-        <button type="button" className="primary-button summary-button">
-          Continuar compra
+        <button
+          type="button"
+          className="primary-button summary-button"
+          disabled={items.length === 0 || checkoutStatus === "loading"}
+          onClick={handleWhatsappCheckout}
+        >
+          {checkoutStatus === "loading" ? "Validando stock..." : "Pagar por WhatsApp"}
         </button>
+        {checkoutError ? <p className="checkout-error">{checkoutError}</p> : null}
       </aside>
     </section>
   );

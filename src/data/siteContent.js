@@ -1,7 +1,7 @@
 export const siteBrand = {
-  eyebrow: "Beauty Atelier",
-  name: "Lumina",
-  monogram: "L",
+  eyebrow: "Della Shop",
+  name: "Della",
+  monogram: "D",
 };
 
 export const primaryNavigation = [
@@ -17,7 +17,7 @@ export const homePageContent = {
     tag: "Colección atelier 2026",
     title: "Una tienda de maquillaje con presencia editorial, lujo táctil y deseo de marca.",
     description:
-      "Lumina mezcla cosmética contemporánea, visuales pulidos y una navegación refinada para convertir el catálogo en una experiencia aspiracional de belleza.",
+      "Della mezcla cosmética contemporánea, visuales pulidos y una navegación refinada para convertir el catálogo en una experiencia aspiracional de belleza.",
     actions: [
       { label: "Explorar catálogo", href: "/catalog", variant: "primary" },
       { label: "Conocer la marca", href: "/about", variant: "secondary" },

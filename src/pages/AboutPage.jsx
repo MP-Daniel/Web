@@ -5,7 +5,7 @@ export function AboutPage() {
         <div className="section-heading stack">
           <div>
             <p className="section-tag">Nosotros</p>
-            <h2>Lumina nace para unir fórmula, imagen y experiencia digital.</h2>
+            <h2>Della nace para unir fórmula, imagen y experiencia digital.</h2>
           </div>
           <p>
             Pensamos la belleza como una mezcla entre técnica, sensibilidad editorial y confianza

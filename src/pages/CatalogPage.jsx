@@ -1,49 +1,57 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductCard } from "../components/ui/ProductCard";
 import { SectionHeading } from "../components/ui/SectionHeading";
-import { productCategories, products } from "../data/products";
-import { parsePrice } from "../utils/price";
+import { getProducts } from "../services/api";
 
-const productPrices = products.map((product) => parsePrice(product.price));
-const minAvailablePrice = Math.min(...productPrices);
-const maxAvailablePrice = Math.max(...productPrices);
-
-function sortProducts(list, sortBy) {
-  if (sortBy === "price-asc") {
-    return [...list].sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
-  }
-
-  if (sortBy === "price-desc") {
-    return [...list].sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
-  }
-
-  return [...list].sort((a, b) => b.popularity - a.popularity);
-}
+const productCategories = ["Todos", "Labios", "Rostro", "Ojos", "Cejas", "Skincare"];
 
 export function CatalogPage() {
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
-  const [minPrice, setMinPrice] = useState(String(minAvailablePrice));
-  const [maxPrice, setMaxPrice] = useState(String(maxAvailablePrice));
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("popularity");
 
-  const visibleProducts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const safeMin = Number(minPrice || 0);
-    const safeMax = Number(maxPrice || maxAvailablePrice);
+  useEffect(() => {
+    const controller = new AbortController();
 
-    const filtered = products.filter((product) => {
-      const productPrice = parsePrice(product.price);
-      const matchesSearch = product.name.toLowerCase().includes(normalizedSearch);
-      const matchesCategory =
-        selectedCategory === "Todos" || product.category === selectedCategory;
-      const matchesRange = productPrice >= safeMin && productPrice <= safeMax;
+    async function loadProducts() {
+      setIsLoading(true);
+      setError("");
 
-      return matchesSearch && matchesCategory && matchesRange;
-    });
+      try {
+        const apiProducts = await getProducts({
+          search: searchTerm,
+          category: selectedCategory,
+          minPrice,
+          maxPrice,
+          sort: sortBy,
+        });
 
-    return sortProducts(filtered, sortBy);
+        if (!controller.signal.aborted) {
+          setProducts(apiProducts);
+        }
+      } catch (loadError) {
+        if (!controller.signal.aborted) {
+          setError(loadError.message);
+          setProducts([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => controller.abort();
   }, [maxPrice, minPrice, searchTerm, selectedCategory, sortBy]);
+
+  const visibleProducts = useMemo(() => products, [products]);
 
   return (
     <main className="page-shell page-main">
@@ -51,7 +59,7 @@ export function CatalogPage() {
         <SectionHeading
           eyebrow="Catálogo"
           title="Explora por categoría, encuentra tonos clave y filtra con criterio."
-          description="La tienda ahora ofrece una experiencia de catálogo más realista con búsqueda, filtros por categoría, rango de precio y ordenamiento por valor o popularidad."
+          description="La tienda ahora consulta productos reales desde el backend conectado a Supabase."
         />
       </section>
 
@@ -90,8 +98,7 @@ export function CatalogPage() {
               <input
                 id="minPrice"
                 type="number"
-                min={minAvailablePrice}
-                max={maxAvailablePrice}
+                min="0"
                 value={minPrice}
                 onChange={(event) => setMinPrice(event.target.value)}
               />
@@ -102,8 +109,7 @@ export function CatalogPage() {
               <input
                 id="maxPrice"
                 type="number"
-                min={minAvailablePrice}
-                max={maxAvailablePrice}
+                min="0"
                 value={maxPrice}
                 onChange={(event) => setMaxPrice(event.target.value)}
               />
@@ -126,16 +132,36 @@ export function CatalogPage() {
 
         <div className="catalog-results">
           <div className="catalog-toolbar">
-            <p className="catalog-summary">{visibleProducts.length} productos encontrados</p>
+            <p className="catalog-summary">
+              {isLoading ? "Cargando productos..." : `${visibleProducts.length} productos encontrados`}
+            </p>
           </div>
 
-          {visibleProducts.length > 0 ? (
+          {error ? (
+            <div className="empty-state">
+              <p className="eyebrow">Error de conexión</p>
+              <h3>No pudimos cargar el catálogo.</h3>
+              <p>{error}</p>
+            </div>
+          ) : null}
+
+          {isLoading && !error ? (
+            <div className="empty-state">
+              <p className="eyebrow">Cargando</p>
+              <h3>Consultando productos desde Supabase.</h3>
+              <p>Estamos preparando el catálogo actualizado.</p>
+            </div>
+          ) : null}
+
+          {!isLoading && !error && visibleProducts.length > 0 ? (
             <div className="products-grid">
               {visibleProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          ) : (
+          ) : null}
+
+          {!isLoading && !error && visibleProducts.length === 0 ? (
             <div className="empty-state">
               <p className="eyebrow">Sin coincidencias</p>
               <h3>No encontramos productos con esos filtros.</h3>
@@ -148,15 +174,15 @@ export function CatalogPage() {
                 onClick={() => {
                   setSearchTerm("");
                   setSelectedCategory("Todos");
-                  setMinPrice(String(minAvailablePrice));
-                  setMaxPrice(String(maxAvailablePrice));
+                  setMinPrice("");
+                  setMaxPrice("");
                   setSortBy("popularity");
                 }}
               >
                 Limpiar filtros
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
     </main>
