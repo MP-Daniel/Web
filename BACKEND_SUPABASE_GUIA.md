@@ -1,4 +1,4 @@
-# Backend y Supabase para Lumina
+# Backend y Supabase para Della shop
 
 Esta guia explica como conectar el proyecto a Supabase, como correr el backend y como manejar pedidos por WhatsApp.
 
